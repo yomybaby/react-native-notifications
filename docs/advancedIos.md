@@ -165,6 +165,17 @@ In order to support interactive notifications, firstly add the following methods
 }
 ```
 
+Second, `addEventListener` for `notificationActionReceived` event. (don't forget to add `removeEventListener` on `componentWillUnmount`)
+```
+NotificationsIOS.addEventListener('notificationActionReceived', (action, completed) => {
+	console.log('ACTION RECEIVED');
+	console.log(JSON.stringify(action));
+
+	// You must call to completed(), otherwise the action will not be triggered
+	completed();
+});
+```
+
 Then, follow the basic workflow of adding interactive notifications to your app:
 
 1. Config the actions.
@@ -183,12 +194,6 @@ let upvoteAction = new NotificationAction({
   activationMode: "background",
   title: String.fromCodePoint(0x1F44D),
   identifier: "UPVOTE_ACTION"
-}, (action, completed) => {
-  console.log("ACTION RECEIVED");
-  console.log(JSON.stringify(action));
-
-  // You must call to completed(), otherwise the action will not be triggered
-  completed();
 });
 
 let replyAction = new NotificationAction({
@@ -197,11 +202,6 @@ let replyAction = new NotificationAction({
   behavior: "textInput",
   authenticationRequired: true,
   identifier: "REPLY_ACTION"
-}, (action, completed) => {
-  console.log("ACTION RECEIVED");
-  console.log(action);
-
-  completed();
 });
 
 ```
