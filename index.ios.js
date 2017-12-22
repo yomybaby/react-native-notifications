@@ -14,8 +14,7 @@ export const DEVICE_PUSH_KIT_REGISTERED_EVENT = "pushKitRegistered";
 export const DEVICE_NOTIFICATION_RECEIVED_FOREGROUND_EVENT = "notificationReceivedForeground";
 export const DEVICE_NOTIFICATION_RECEIVED_BACKGROUND_EVENT = "notificationReceivedBackground";
 export const DEVICE_NOTIFICATION_OPENED_EVENT = "notificationOpened";
-
-const DEVICE_NOTIFICATION_ACTION_RECEIVED = "notificationActionReceived";
+export const DEVICE_NOTIFICATION_ACTION_RECEIVED = "notificationActionReceived";
 
 const _exportedEvents = [
   DEVICE_REMOTE_NOTIFICATIONS_REGISTERED_EVENT,
@@ -23,10 +22,10 @@ const _exportedEvents = [
   DEVICE_PUSH_KIT_REGISTERED_EVENT,
   DEVICE_NOTIFICATION_RECEIVED_FOREGROUND_EVENT,
   DEVICE_NOTIFICATION_RECEIVED_BACKGROUND_EVENT,
-  DEVICE_NOTIFICATION_OPENED_EVENT
+  DEVICE_NOTIFICATION_OPENED_EVENT,
+  DEVICE_NOTIFICATION_ACTION_RECEIVED
 ];
 const _notificationHandlers = new Map();
-const _actionHandlers = new Map();
 let _actionListener;
 
 export class NotificationAction {
@@ -78,6 +77,16 @@ export default class NotificationsIOS {
           DEVICE_PUSH_KIT_REGISTERED_EVENT,
           registration => handler(registration.pushKitToken)
         );
+      } else if (type === DEVICE_NOTIFICATION_ACTION_RECEIVED){
+        listener = DeviceEventEmitter.addListener(
+          DEVICE_NOTIFICATION_ACTION_RECEIVED,
+          (action: Object) => {
+            action.notification = new IOSNotification(action.notification);
+            handler(action, () => {
+              NativeRNNotifications.completionHandler(action.completionKey);
+            });
+          }
+        );
       } else {
         listener = DeviceEventEmitter.addListener(
           type,
@@ -104,17 +113,6 @@ export default class NotificationsIOS {
     }
   }
 
-  static _actionHandlerDispatcher(action: Object) {
-    const actionHandler = _actionHandlers.get(action.identifier);
-
-    if (actionHandler) {
-      action.notification = new IOSNotification(action.notification);
-
-      actionHandler(action, () => {
-        NativeRNNotifications.completionHandler(action.completionKey);
-      });
-    }
-  }
 
   /**
    * Sets the notification categories
@@ -123,15 +121,9 @@ export default class NotificationsIOS {
     let notificationCategories = [];
 
     if (categories) {
-      // subscribe once for all actions
-      _actionListener = NativeAppEventEmitter.addListener(DEVICE_NOTIFICATION_ACTION_RECEIVED, this._actionHandlerDispatcher.bind(this));
-
       notificationCategories = categories.map(category => {
         return Object.assign({}, category.options, {
           actions: category.options.actions.map(action => {
-            // subscribe to action event
-            _actionHandlers.set(action.options.identifier, action.handler);
-
             return action.options;
           })
         });
@@ -156,8 +148,6 @@ export default class NotificationsIOS {
     if (_actionListener) {
       _actionListener.remove();
     }
-
-    _actionHandlers.clear();
   }
 
   static setBadgesCount(count: number) {
